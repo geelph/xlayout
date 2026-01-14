@@ -1,0 +1,25 @@
+{
+  "extends": "@tsconfig/node24/tsconfig.json",
+  "include": [
+    "typings/node/*.d.ts",
+    "typings/common/*.d.ts",
+    "packages/**/*",
+    "build/**/*",
+    "vite.config.*",
+    "uno.config.*",
+    "vitest.config.*",
+    "cypress.config.*",
+    "nightwatch.conf.*",
+    "playwright.config.*",
+    "eslint.config.*",
+    "typings/app/app.d.ts"
+  ],
+  "compilerOptions": {
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node", "vite/client"]
+  }
+}

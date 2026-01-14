@@ -1,0 +1,286 @@
+import { useMediaQuery } from '@vueuse/core'
+import { useOsTheme } from 'naive-ui'
+import { userConfig as customConfig, bgColor } from '@/config/app'
+import { themeColor } from '@rengar-admin/color'
+import { injectTailwindCssVarToGlobal } from '@/utils/theme'
+import { cloneDeep } from 'es-toolkit'
+import type { GlobalThemeOverrides } from 'naive-ui'
+
+export const useAppStore = defineStore(
+  'app',
+  () => {
+    const isPc = useMediaQuery('(min-width: 1025px)')
+    const isPad = useMediaQuery('(min-width: 768px) and (max-width: 1024px)')
+    const isMobile = useMediaQuery('(max-width: 767px)')
+
+    const userConfig = reactive<App.UserConfig>(cloneDeep(customConfig))
+
+    const systemConfig = reactive<App.Config>({
+      asideCollapse: isPad.value,
+      asideCollapseWidth: 64,
+    })
+
+    // 灰色模式和色弱模式
+    watch(
+      () => [userConfig.grayMode, userConfig.colorWeakMode],
+      ([grayMode, colorWeakMode]) => {
+        const filters = []
+        if (grayMode) filters.push('grayscale(100%)')
+        if (colorWeakMode) {
+          filters.push('invert(10%) hue-rotate(180deg) contrast(1.1)')
+        }
+        document.documentElement.style.filter = filters.join(' ')
+      },
+      { immediate: true },
+    )
+
+    function layoutModeChangeAction(mode: App.LayoutMode) {
+      userConfig.layoutMode = mode
+    }
+
+    function compareLayoutConfig() {
+      if (userConfig.version === customConfig.version) return
+      for (const key in customConfig) {
+        if ((userConfig as Recordable)[key] !== (customConfig as Recordable)[key]) {
+          ;(userConfig as Recordable)[key] = (customConfig as Recordable)[key]
+        }
+      }
+    }
+
+    function resetUserConfig() {
+      for (const key in customConfig) {
+        ;(userConfig as Recordable)[key] = (customConfig as Recordable)[key]
+      }
+    }
+
+    function toggleAsideCollapse() {
+      systemConfig.asideCollapse = !systemConfig.asideCollapse
+    }
+
+    const showConfigDrawer = ref(false)
+    function toggleConfigDrawer() {
+      showConfigDrawer.value = !showConfigDrawer.value
+    }
+
+    const showMenuDrawer = ref(false)
+    function toggleMenuDrawer(val: boolean) {
+      showMenuDrawer.value = val
+    }
+
+    const showSearchModal = ref(false)
+    function openSearchModal() {
+      showSearchModal.value = true
+    }
+
+    const layoutContentRef = ref<HTMLElement>()
+    function setLayoutContentRef(el: HTMLElement) {
+      layoutContentRef.value = el
+    }
+
+    const showRouterView = ref(true)
+    function refreshRouterView() {
+      showRouterView.value = false
+      nextTick(() => {
+        showRouterView.value = true
+      })
+    }
+
+    const osTheme = useOsTheme()
+
+    // 切换主题按钮的模式
+    const themeMode = ref<App.Theme>('auto')
+
+    // 应用当前主题
+    const theme = computed(() => {
+      if (themeMode.value === 'light') return 'light'
+      if (themeMode.value === 'dark') return 'dark'
+      return osTheme.value || 'light'
+    })
+
+    // naive-ui主题颜色覆盖
+    const themeOverrides = reactive<GlobalThemeOverrides>({
+      Layout: {
+        colorEmbedded: theme.value === 'light' ? bgColor : 'transparent',
+        footerColor: theme.value === 'light' ? bgColor : 'transparent',
+      },
+      common: {
+        primaryColor: themeColor.primary.DEFAULT,
+        primaryColorHover: themeColor.primary['400'],
+        primaryColorPressed: themeColor.primary['700'],
+        primaryColorSuppl: themeColor.primary['400'],
+      },
+    })
+
+    onMounted(() => setDetaultTheme())
+
+    // 监听系统主题变化，当处于auto模式时触发过渡动画
+    watch(osTheme, () => {
+      if (themeMode.value === 'auto') {
+        // 直接调用 triggerThemeTransition，不需要事件参数，它会使用屏幕中心
+        triggerThemeTransition()
+      }
+    })
+
+    // 设置默认主题，根据当前主题切换类名和颜色
+    function setDetaultTheme() {
+      if (theme.value === 'dark') {
+        document.documentElement.classList.add('dark')
+        themeOverrides.Layout!.colorEmbedded = 'transparent'
+        themeOverrides.Layout!.footerColor = 'transparent'
+      } else {
+        document.documentElement.classList.remove('dark')
+        themeOverrides.Layout!.colorEmbedded = bgColor
+        themeOverrides.Layout!.footerColor = bgColor
+      }
+    }
+
+    // 切换主题时触发过渡动画
+    function triggerThemeTransition(event?: MouseEvent) {
+      const isAppearanceTransition =
+        'startViewTransition' in document && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+      if (!isAppearanceTransition) {
+        setDetaultTheme()
+        return
+      }
+
+      // 如果没有事件参数，使用屏幕中心作为动画起始点
+      const x = event ? event.clientX : window.innerWidth / 2
+      const y = event ? event.clientY : window.innerHeight / 2
+      const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
+
+      const transition = document.startViewTransition(async () => {
+        setDetaultTheme()
+        await nextTick()
+      })
+
+      transition.ready
+        .then(() => {
+          const clipPath = [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`]
+
+          const isDark = document.documentElement.classList.contains('dark')
+
+          const animate = document.documentElement.animate(
+            {
+              clipPath: isDark ? [...clipPath].reverse() : clipPath,
+            },
+            {
+              duration: 450,
+              easing: 'linear',
+              pseudoElement: isDark ? '::view-transition-old(root)' : '::view-transition-new(root)',
+            },
+          )
+
+          animate.onfinish = () => {
+            transition.skipTransition()
+          }
+        })
+        .catch(() => {
+          setDetaultTheme()
+        })
+    }
+
+    function toggleTheme(event: MouseEvent) {
+      // 保存当前模式，用于动画完成后的状态更新
+      let newThemeMode: App.Theme
+      if (themeMode.value === 'auto') {
+        newThemeMode = 'light'
+      } else if (themeMode.value === 'light') {
+        newThemeMode = 'dark'
+      } else {
+        newThemeMode = 'auto'
+      }
+
+      // 先触发动画，动画完成后再更新主题模式
+      const isAppearanceTransition =
+        'startViewTransition' in document && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+      if (!isAppearanceTransition) {
+        // 如果不支持过渡动画，直接更新主题模式
+        themeMode.value = newThemeMode
+        setDetaultTheme()
+        return
+      }
+
+      const x = event.clientX
+      const y = event.clientY
+      const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
+
+      const transition = document.startViewTransition(async () => {
+        // 在过渡中更新主题模式，这样图标会在动画过程中改变
+        // 实际的DOM变化会在动画期间发生
+        themeMode.value = newThemeMode
+        setDetaultTheme()
+        await nextTick()
+      })
+
+      transition.ready
+        .then(() => {
+          const clipPath = [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`]
+
+          const isDark = newThemeMode === 'dark' || (newThemeMode === 'auto' && osTheme.value === 'dark')
+
+          const animate = document.documentElement.animate(
+            {
+              clipPath: isDark ? [...clipPath].reverse() : clipPath,
+            },
+            {
+              duration: 450,
+              easing: 'ease-in',
+              pseudoElement: isDark ? '::view-transition-old(root)' : '::view-transition-new(root)',
+            },
+          )
+
+          animate.onfinish = () => {
+            transition.skipTransition()
+          }
+        })
+        .catch(() => {
+          // 忽略可能的中断错误，确保主题正确设置
+          themeMode.value = newThemeMode
+          setDetaultTheme()
+        })
+    }
+
+    function resetLayoutAndTheme() {
+      resetUserConfig()
+      injectTailwindCssVarToGlobal(userConfig.primaryColor, 'primary')
+    }
+
+    return {
+      userConfig,
+      systemConfig,
+      showConfigDrawer,
+      showMenuDrawer,
+      showSearchModal,
+      openSearchModal,
+      isPc,
+      isMobile,
+      isPad,
+      layoutContentRef,
+      showRouterView,
+      toggleAsideCollapse,
+      toggleConfigDrawer,
+      layoutModeChangeAction,
+      toggleMenuDrawer,
+      setLayoutContentRef,
+      refreshRouterView,
+      themeOverrides,
+      themeMode,
+      theme,
+      toggleTheme,
+      resetLayoutAndTheme,
+      compareLayoutConfig,
+    }
+  },
+
+  {
+    persist: {
+      storage: localStorage,
+      pick: ['userConfig', 'themeOverrides'],
+      afterHydrate(ctx) {
+        injectTailwindCssVarToGlobal(ctx.store.themeOverrides.common.primaryColor, 'primary')
+      },
+    },
+  },
+)

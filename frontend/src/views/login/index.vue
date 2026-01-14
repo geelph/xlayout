@@ -1,0 +1,146 @@
+<template>
+  <div style="height: 100vh; height: 100dvh" class="relative overflow-hidden bg-primary-100 dark:bg-primary-900">
+    <NCard class="absolute-center z-1 max-w-400px w-[90%]" size="large" :bordered="false" round hoverable>
+      <div class="flex-center text-2xl text-primary">
+        <ThemeControl />
+      </div>
+
+      <div class="mt-4 flex-center gap-4 text-primary">
+        <SvgIcon local-icon="i-local-logo" class="text-6xl text-primary"></SvgIcon>
+        <div class="text-3xl">{{ title }}</div>
+      </div>
+
+      <NForm :model="formData" ref="formRef" :rules label-placement="left" label-width="auto" size="large" class="mt-6">
+        <NFormItem path="username">
+          <NInput
+            v-model:value="formData.username"
+            placeholder="请输入用户名"
+            clearable
+            :theme-overrides="{
+              borderRadius: '6px',
+            }"
+          />
+        </NFormItem>
+        <NFormItem path="password">
+          <NInput
+            v-model:value="formData.password"
+            placeholder="请输入密码"
+            clearable
+            show-password-on="mousedown"
+            type="password"
+            :theme-overrides="{
+              borderRadius: '6px',
+            }"
+          />
+        </NFormItem>
+
+        <NFormItem path="captchaCode">
+          <div class="h-full w-full flex gap-4">
+            <NInput
+              class="flex-1"
+              v-model:value="formData.captchaCode"
+              placeholder="请输入验证码"
+              clearable
+              show-password-on="mousedown"
+              :theme-overrides="{
+                borderRadius: '6px',
+              }"
+            />
+
+            <NSpin :show="captchaLoading">
+              <img class="h-10 w-[120px] cursor-pointer" :src="captchaImage" @click="getChapter" />
+            </NSpin>
+          </div>
+        </NFormItem>
+        <NFormItem>
+          <NButton type="primary" :loading attr-type="submit" round block @click="handleSubmit">登录</NButton>
+        </NFormItem>
+      </NForm>
+    </NCard>
+    <TopWave />
+    <BottomWave />
+    <FooterInfo />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { to } from 'await-to-js'
+import { useAuthStore } from '@/stores'
+import { useLoading } from '@/hooks/loading'
+import { generateCaptchaApi } from '@/api/common/capcha'
+import type { FormInst, FormRules } from 'naive-ui'
+import BottomWave from './components/BottomWave.vue'
+import TopWave from './components/TopWave.vue'
+import ThemeControl from '@/layouts/components/common/ThemeControl.vue'
+import FooterInfo from './components/FooterInfo.vue'
+const title = import.meta.env.VITE_APP_TITLE
+
+const formData = reactive({
+  username: 'preview001',
+  password: 'rengaradmin2025',
+  captchaId: 0,
+  captchaCode: '',
+})
+const formRef = useTemplateRef<FormInst>('formRef')
+const rules: FormRules = {
+  username: {
+    required: true,
+    trigger: ['input', 'blur'],
+    message: '请输入用户名',
+  },
+  password: {
+    required: true,
+    trigger: ['input', 'blur'],
+    message: '请输入密码',
+  },
+  captchaCode: {
+    required: true,
+    trigger: ['input', 'blur'],
+    message: '请输入验证码',
+  },
+}
+
+const captchaLoading = ref(false)
+const captchaImage = ref('')
+
+async function getChapter() {
+  captchaLoading.value = true
+  formData.captchaCode = ''
+  const [err, res] = await to(generateCaptchaApi())
+  captchaLoading.value = false
+  if (err) {
+    formData.captchaCode = ''
+    return
+  }
+  captchaImage.value = res.image
+  formData.captchaId = res.captchaId
+}
+
+getChapter()
+
+const authStore = useAuthStore()
+
+const { loading, startLoading, endLoading } = useLoading()
+
+const route = useRoute()
+const router = useRouter()
+const redirect = route.query.redirect ? decodeURIComponent(route.query.redirect as string) : undefined
+async function handleSubmit() {
+  startLoading()
+  const [err] = await to(formRef.value!.validate())
+  if (err) {
+    endLoading()
+    return
+  }
+  const [loginErr] = await to(authStore.authLoginAction(formData))
+  if (loginErr) {
+    getChapter()
+    endLoading()
+    return
+  }
+  window.$message.success('登录成功')
+  router.replace(redirect || '/')
+}
+</script>
+
+<style scoped></style>

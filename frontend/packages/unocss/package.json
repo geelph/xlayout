@@ -1,0 +1,16 @@
+{
+  "name": "@rengar-admin/unocss",
+  "version": "1.0.0",
+  "description": "",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.4.1",
+  "devDependencies": {}
+}

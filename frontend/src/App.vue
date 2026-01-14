@@ -1,31 +1,33 @@
-<script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <div class="container">
-    <div>
-      <a data-wml-openURL="https://wails.io">
-        <img src="/wails.png" class="logo" alt="Wails logo"/>
-      </a>
-      <a data-wml-openURL="https://vuejs.org/">
-        <img src="/vue.svg" class="logo vue" alt="Vue logo"/>
-      </a>
-    </div>
-    <HelloWorld msg="Wails + Vue" />
-  </div>
+  <component :is="layoutComponent"></component>
 </template>
 
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
+<script setup lang="ts">
+import BasicLayout from '@/layouts/base/index.vue'
+import BlankLayout from '@/layouts/blank/index.vue'
+
+import { useAppStore } from '@/stores'
+
+defineOptions({
+  name: 'App',
+})
+
+const appStore = useAppStore()
+appStore.compareLayoutConfig()
+
+const route = useRoute()
+const layoutComponent = computed(() => {
+  const layout = route.meta.layout
+  if (!layout || layout === 'base') return BasicLayout
+  return BlankLayout
+})
+
+// 开发环境不引入自动更新
+if (!import.meta.env.DEV) {
+  import('@/hooks/update').then((module) => {
+    module.useUpdateChecker()
+  })
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #e80000aa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
-}
-</style>
+</script>
+
+<style scoped></style>
