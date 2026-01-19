@@ -52,6 +52,8 @@ dev_mode:
       type: blocking
     - cmd: wails3 task common:dev:frontend
       type: background
+    - cmd: sleep 3 # 解决vite启动慢导致dev提前终止，delay_next参数无效情况下
+      type: blocking
     - cmd: wails3 task run
       type: primary
 
