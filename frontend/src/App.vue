@@ -21,13 +21,6 @@ const layoutComponent = computed(() => {
   if (!layout || layout === 'base') return BasicLayout
   return BlankLayout
 })
-
-// 开发环境不引入自动更新
-if (!import.meta.env.DEV) {
-  import('@/hooks/update').then((module) => {
-    module.useUpdateChecker()
-  })
-}
 </script>
 
 <style scoped></style>

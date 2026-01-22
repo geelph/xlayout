@@ -41,8 +41,10 @@ export const useMenuStore = defineStore(
         return true
       })
       const menus = sortMenus(filterMenus)
-      menuRoutes.value = menus
+      return menus
     }
+    // 绕过验证显示侧栏菜单
+    menuRoutes.value = generateMenus()
 
     const topActiveName = ref<RouteRecordName>()
     const subMenuRoutes = computed(() => {

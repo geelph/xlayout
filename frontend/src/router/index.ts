@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { setupRouterGuard } from './guard'
+// import { setupRouterGuard } from './guard'
 import { routes } from './routes'
 // import { filterRoutes } from './utils'
 
@@ -27,6 +27,6 @@ export default router
 
 export async function setupRouter(app: App) {
   app.use(router)
-  setupRouterGuard(router)
+  // setupRouterGuard(router)
   await router.isReady()
 }
