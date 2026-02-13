@@ -1,6 +1,6 @@
 package xlayout
 
-import "github.com/geelph/xlayout/cmd"
+import "$MODULE/cmd"
 
 func main() {
 	cmd.Execute()

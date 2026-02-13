@@ -1,3 +1,3 @@
-module github.com/geelph/xlayout
+module $MODULE
 
 go 1.25.0
