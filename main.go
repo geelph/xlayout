@@ -1,4 +1,4 @@
-package xlayout
+package main
 
 import "$MODULE/cmd"
 
